@@ -1,6 +1,4 @@
 # TODO: Add graphics
-import sqlite3
-import logging
 import queue
 import multiprocessing
 from configparser import ConfigParser
@@ -12,6 +10,7 @@ from configparser import ConfigParser
 # termer => (5, -3)
 # t0 => koefficienten för termen, t1 => variabeln, t2 => exponenten till variabeln
 # funktion: (5, -3) + (7, 1) + (-19, 0)
+
 
 # construct polynomial function from configuration file string
 # TODO: Shorten
@@ -42,7 +41,6 @@ def derivera(function: list):
 
         derv_funktion.append((new_k, new_g))
 
-    # print(f'deriverad funk: {derv_funktion}')
     return derv_funktion
 
 
@@ -56,7 +54,6 @@ def kalk_funk(funktion: list, x):
 
         value = k * (x ** e)
         terms.append(value)
-    # print(f'kalkulation: funk={funktion}, x-värde: {x} summa:{sum(terms)}')
 
     return sum(terms)
 
@@ -76,9 +73,7 @@ def algoritm(funktion: list, noggrannhet: int, startvärde: float, Que: queue.Qu
         try:
             resultat = x - (kalk_funk(funktion=funktion, x=x) / kalk_funk(derivera(funktion), x))
         except ZeroDivisionError:  # division by zero => extreme value
-            print(f'Hittade extrempunkt, X = {x}')
-            print(f'Proces terminerar sig själv!')
-            exit()
+            exit()      # exit when extrem value, otherwise it crashes
 
         # first run of algorithm
         if not old_res:
@@ -87,19 +82,18 @@ def algoritm(funktion: list, noggrannhet: int, startvärde: float, Que: queue.Qu
 
         # if found solution
         elif round(old_res, noggrannhet) == round(resultat, noggrannhet):
-            Que.put(resultat)
+            Que.put(round(resultat, noggrannhet))
             break
 
         # no passable solution found
         else:
             x = resultat
             old_res = resultat
-            # print(f'X = {resultat}')
 
 
 # TODO: Print all solutions
 # TODO: Terminate algorithms when all solutions found
-def communicator(Que: queue.Queue, polynomial: list, prcs_list: list):
+def communicator(Que: queue.Queue, polynomial: list, com_queue: queue.Queue):
     solutions = []
 
     # Determine max solutions
@@ -108,11 +102,9 @@ def communicator(Que: queue.Queue, polynomial: list, prcs_list: list):
     # active role
     while True:
 
-        # kill program when all solutions found
+        # send kill flag when all solutions found
         if len(solutions) == max_solutions:
-            print(f"all found {solutions}")
-            for prcs in prcs_list:
-                prcs.kill()
+            com_queue.put(1)
             break
 
         # handle new solutions
@@ -154,7 +146,7 @@ def main():
         funktion = []
 
         for i in range(gradtal):
-            k = float(input(f"Koefficientet till x^{gradtal - i}: "))
+            k = float(input(f"Koefficienten till x^{gradtal - i}: "))
             funktion.append((k, gradtal - i))
 
         funktion.append((float(input('Konstant: ')), 0))
@@ -168,6 +160,7 @@ def main():
 
     # Queue
     Que = multiprocessing.Queue()
+    com_queue = multiprocessing.Queue()
 
     # # multiprocesser
     # TODO: Analyse area in which there could be a solution
@@ -181,12 +174,21 @@ def main():
         prcs_list.append(prcs2)
 
     # start communicator process
-    comm = multiprocessing.Process(target=communicator, args=(Que, funktion, prcs_list))
+    comm = multiprocessing.Process(target=communicator, args=(Que, funktion, com_queue))
     comm.start()
 
     # start all processes
     for j, prcs in enumerate(prcs_list):
         prcs.start()
+
+    while True:
+        if not com_queue.empty():
+            flag = com_queue.get()
+
+            if flag == 1:
+                for prcs in prcs_list:
+                    prcs.kill()
+                break
 
     # join all processes
     for prcs in prcs_list:
@@ -195,7 +197,7 @@ def main():
 
     # TODO: Add tests
 
-    print('Done!')
+    print('Program execution complete!!!')
 
 
 if __name__ == '__main__':
