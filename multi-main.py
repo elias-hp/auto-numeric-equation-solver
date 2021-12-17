@@ -1,8 +1,10 @@
+# TODO: Add graphics
 import sqlite3
 import logging
 import queue
 import multiprocessing
 
+# TODO: Documentation
 # hur funktioner beskrivs:
 # konstanter => (5, 0)
 # termer => (5, -3)
@@ -10,6 +12,7 @@ import multiprocessing
 # funktion: (5, -3) + (7, 1) + (-19, 0)
 
 # funktion som deriverar
+# TODO: Shorten
 def derivera(function: list):
     derv_funktion = []
 
@@ -25,7 +28,7 @@ def derivera(function: list):
     # print(f'deriverad funk: {derv_funktion}')
     return derv_funktion
 
-
+# TODO: Shorten
 def kalk_funk(funktion: list, x):
     terms = []
 
@@ -41,6 +44,10 @@ def kalk_funk(funktion: list, x):
 
 
 # Räkna ut nollställe
+# TODO: Add logging of calculations
+# TODO: Recognize already found solutions & skip logg/save
+# TODO: Recognize already searched areas
+# TODO: Recognize max solutions & end algorithm when done
 def algoritm(funktion:list, noggrannhet:int, startvärde:float):
 
     x = startvärde
@@ -71,6 +78,7 @@ def main():
 
     # # meny för funktionsinmatning
     # konstruera funktion
+    # TODO: Add option for configuration file, fast testing
     gradtal = int(input("Ekvationens gradtal: "))
 
     funktion = []
@@ -89,6 +97,7 @@ def main():
     noggrannhet = int(input('Noggrannhet, antal decimaler: '))
 
     # # multiprocesser
+    # TODO: Analyse area in which there could be a solution
     for i in range(int(prcs_max/2)):
 
         prcs1 = multiprocessing.Process(target=algoritm, args=(funktion, noggrannhet, ((-marginal/(2*prcs_max))*(i+1))))
@@ -99,6 +108,8 @@ def main():
 
     prcs1.join()
     prcs2.join()
+
+    # TODO: Add tests
 
     print('Done!')
 
