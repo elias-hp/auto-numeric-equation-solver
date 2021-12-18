@@ -197,15 +197,17 @@ def main():
     program_calculation_start = time.time()
 
     # start all processes
+    # TODO: move to thread or something...
     for j, prcs in enumerate(prcs_list):
         prcs.start()
 
     program_prcs_started = time.time()
 
+    # TODO: Stop this from being hindered by function starter
+
     while True:
         if not comm_queue.empty():
             flag = comm_queue.get()
-
             if flag == 1:
                 program_calculation_complete = time.time()
                 for prcs in prcs_list:
@@ -213,6 +215,7 @@ def main():
                 break
 
             if flag == 2:
+                print(2)
                 program_calculation_complete = time.time()
                 break
 
