@@ -233,7 +233,7 @@ def main():
     print(f'Multiprocessors started: {round(program_prcs_started - program_start, 4)}')
     print(f'Multiprocessors starting sequence time: {round(program_prcs_started - program_prcs_starting, 4)}')
 
-    print(f'\nCalculation time: {round(program_end - program_calculation_start, 4)}')
+    print(f'\nCalculation time: {round(program_calculation_complete - program_calculation_start, 4)}')
     print(f'Full capacity calculation time: {round(program_calculation_complete - program_prcs_started, 4)}')
 
     print(f'\nCalculations complete: {round(program_calculation_complete - program_start, 4)}')
