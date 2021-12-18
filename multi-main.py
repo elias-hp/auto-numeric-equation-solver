@@ -94,7 +94,7 @@ def algoritm(funktion: list, noggrannhet: int, startvärde: float, solution_queu
 
 # TODO: Print all solutions
 # TODO: Terminate algorithms when all solutions found
-def communicator(solution_queue: queue.Queue, polynomial: list, comm_queue: queue.Queue, status_queue: queue.Queue, prcs_max):
+def communicator(solution_queue: queue.Queue, polynomial: list, comm_queue: queue.Queue, status_queue: queue.Queue, prcs_max, prcs_queue: queue.Queue):
     solutions = []
     completed_prcs = []
 
@@ -107,13 +107,20 @@ def communicator(solution_queue: queue.Queue, polynomial: list, comm_queue: queu
         # send kill flag & print when all possible solutions found
         if len(solutions) == max_solutions:
             comm_queue.put(1)
+
+            # killing all algorithm-processes
+            while not prcs_queue.empty():
+                prcs = prcs_queue.get()
+                prcs.kill()
+            print('Killed algorithm-processes')
+
             break
 
         # send kill flag & print when all available solutions found => all prcs done
         elif not status_queue.empty():
             completed_prcs.append(status_queue.get())
             if len(completed_prcs) == prcs_max:
-                comm_queue.put(2)
+                comm_queue.put(1)
                 break
 
         # handle new solutions
@@ -175,6 +182,7 @@ def main():
     solution_queue = multiprocessing.Queue()
     comm_queue = multiprocessing.Queue()
     status_queue = multiprocessing.Queue()
+    prcs_queue = multiprocessing.Queue()
 
     # # multiprocesser
     # TODO: Analyse area in which there could be a solution
@@ -191,38 +199,46 @@ def main():
         prcs_list.append(prcs2)
 
     # start communicator process
-    comm = multiprocessing.Process(target=communicator, args=(solution_queue, funktion, comm_queue, status_queue, prcs_max))
+    comm = multiprocessing.Process(target=communicator, args=(solution_queue, funktion, comm_queue, status_queue, prcs_max, prcs_queue))
     comm.start()
 
     program_calculation_start = time.time()
 
     # start all processes
-    # TODO: move to thread or something...
+    started_prcs = []
+    all_started = True
     for j, prcs in enumerate(prcs_list):
+        # stop starting prcs if solutions found
+        if not comm_queue.empty():
+            program_calculation_complete = time.time()
+            comm_queue.get()
+            all_started = False
+            program_prcs_started = program_calculation_complete
+            break
+
+        # start
         prcs.start()
 
-    program_prcs_started = time.time()
+        # TODO: Fix authentication typeerror
+        # raises typeerror bcuz AuthenticationString in process object, still works doe
+        # only prints errors, probably a security flaw  :(
+        # Possible solutions: https://stackoverflow.com/questions/29007619/python-typeerror-pickling-an-authenticationstring-object-is-disallowed-for-sec
+        prcs_queue.put(prcs)
 
-    # TODO: Stop this from being hindered by function starter
+        started_prcs.append(prcs)
 
-    while True:
-        if not comm_queue.empty():
-            flag = comm_queue.get()
-            if flag == 1:
-                program_calculation_complete = time.time()
-                for prcs in prcs_list:
-                    prcs.kill()
-                break
-
-            if flag == 2:
-                print(2)
-                program_calculation_complete = time.time()
-                break
+    # time when all prcs started / not accurate when skipped for finding solution early
+    if all_started:
+        program_prcs_started = time.time()
 
     # join all processes
-    for prcs in prcs_list:
+    for prcs in started_prcs:
         prcs.join()
-        comm.join()
+    comm.join()
+
+    # time calculations end when program finished
+    if not comm_queue.empty():
+        program_calculation_complete = time.time()
 
     # TODO: Add tests
 
@@ -234,7 +250,7 @@ def main():
     print(f'Multiprocessors starting sequence time: {round(program_prcs_started - program_prcs_starting, 4)}')
 
     print(f'\nCalculation time: {round(program_end - program_calculation_start, 4)}')
-    print(f'Full capacity calculation time: {round(program_end - program_prcs_started, 4)}')
+    print(f'Full capacity calculation time: {round(program_calculation_complete - program_prcs_started, 4)}')
 
     print(f'\nCalculations complete: {round(program_calculation_complete - program_start, 4)}')
     print(f'Calculation to solution time : {round(program_calculation_complete - program_calculation_start, 4)}')
