@@ -2,7 +2,7 @@
 import queue
 import multiprocessing
 from configparser import ConfigParser
-
+import time
 
 # TODO: Documentation
 # hur funktioner beskrivs:
@@ -62,9 +62,8 @@ def kalk_funk(funktion: list, x):
 # TODO: Add logging of calculations
 # TODO: Recognize already found solutions & skip logg/save
 # TODO: Recognize already searched areas
-# TODO: Recognize max solutions & end algorithm when done
 # TODO: Handle polynomials w.o. solutions
-def algoritm(funktion: list, noggrannhet: int, startvärde: float, Que: queue.Queue):
+def algoritm(funktion: list, noggrannhet: int, startvärde: float, solution_queue: queue.Queue, status_queue: queue.Queue):
     x = startvärde
     old_res = None
     while True:
@@ -73,6 +72,7 @@ def algoritm(funktion: list, noggrannhet: int, startvärde: float, Que: queue.Qu
         try:
             resultat = x - (kalk_funk(funktion=funktion, x=x) / kalk_funk(derivera(funktion), x))
         except ZeroDivisionError:  # division by zero => extreme value
+            status_queue.put(1)
             exit()      # exit when extrem value, otherwise it crashes
 
         # first run of algorithm
@@ -82,7 +82,8 @@ def algoritm(funktion: list, noggrannhet: int, startvärde: float, Que: queue.Qu
 
         # if found solution
         elif round(old_res, noggrannhet) == round(resultat, noggrannhet):
-            Que.put(round(resultat, noggrannhet))
+            solution_queue.put(round(resultat, noggrannhet))
+            status_queue.put(1)
             break
 
         # no passable solution found
@@ -93,8 +94,9 @@ def algoritm(funktion: list, noggrannhet: int, startvärde: float, Que: queue.Qu
 
 # TODO: Print all solutions
 # TODO: Terminate algorithms when all solutions found
-def communicator(Que: queue.Queue, polynomial: list, com_queue: queue.Queue):
+def communicator(solution_queue: queue.Queue, polynomial: list, comm_queue: queue.Queue, status_queue: queue.Queue, prcs_max):
     solutions = []
+    completed_prcs = []
 
     # Determine max solutions
     max_solutions = max(polynomial, key=lambda item: item[1])[1]
@@ -102,14 +104,21 @@ def communicator(Que: queue.Queue, polynomial: list, com_queue: queue.Queue):
     # active role
     while True:
 
-        # send kill flag when all solutions found
+        # send kill flag & print when all possible solutions found
         if len(solutions) == max_solutions:
-            com_queue.put(1)
+            comm_queue.put(1)
             break
 
+        # send kill flag & print when all available solutions found => all prcs done
+        elif not status_queue.empty():
+            completed_prcs.append(status_queue.get())
+            if len(completed_prcs) == prcs_max:
+                comm_queue.put(2)
+                break
+
         # handle new solutions
-        elif not Que.empty():
-            new_x = Que.get()
+        elif not solution_queue.empty():
+            new_x = solution_queue.get()
             found = False
 
             # search if solution already saved
@@ -121,7 +130,7 @@ def communicator(Que: queue.Queue, polynomial: list, com_queue: queue.Queue):
             if not found:
                 solutions.append(new_x)
 
-    print(f'All solutions found, X = {solutions}')
+    print(f'\nAll solutions found, X = {solutions}')
 
 
 def main():
@@ -158,36 +167,53 @@ def main():
 
         noggrannhet = int(input('Noggrannhet, antal decimaler: '))
 
-    # Queue
-    Que = multiprocessing.Queue()
-    com_queue = multiprocessing.Queue()
+    # # Misc
+    # start timer
+    program_start = time.time()
+
+    # Queues
+    solution_queue = multiprocessing.Queue()
+    comm_queue = multiprocessing.Queue()
+    status_queue = multiprocessing.Queue()
 
     # # multiprocesser
     # TODO: Analyse area in which there could be a solution
+
+    program_prcs_starting = time.time()
+
     prcs_list = []
-    for i in range(prcs_max):
+    for i in range(int(prcs_max/2)):
         prcs1 = multiprocessing.Process(target=algoritm,
-                                        args=(funktion, noggrannhet, ((-marginal / (2 * prcs_max)) * (i + 1)), Que))
+                                args=(funktion, noggrannhet, ((-marginal / (2 * prcs_max)) * (i + 1)), solution_queue, status_queue))
         prcs2 = multiprocessing.Process(target=algoritm,
-                                        args=(funktion, noggrannhet, ((marginal / (2 * prcs_max)) * (i + 1)), Que))
+                                args=(funktion, noggrannhet, ((marginal / (2 * prcs_max)) * (i + 1)), solution_queue, status_queue))
         prcs_list.append(prcs1)
         prcs_list.append(prcs2)
 
     # start communicator process
-    comm = multiprocessing.Process(target=communicator, args=(Que, funktion, com_queue))
+    comm = multiprocessing.Process(target=communicator, args=(solution_queue, funktion, comm_queue, status_queue, prcs_max))
     comm.start()
+
+    program_calculation_start = time.time()
 
     # start all processes
     for j, prcs in enumerate(prcs_list):
         prcs.start()
 
+    program_prcs_started = time.time()
+
     while True:
-        if not com_queue.empty():
-            flag = com_queue.get()
+        if not comm_queue.empty():
+            flag = comm_queue.get()
 
             if flag == 1:
+                program_calculation_complete = time.time()
                 for prcs in prcs_list:
                     prcs.kill()
+                break
+
+            if flag == 2:
+                program_calculation_complete = time.time()
                 break
 
     # join all processes
@@ -197,7 +223,21 @@ def main():
 
     # TODO: Add tests
 
-    print('Program execution complete!!!')
+    program_end = time.time()
+
+    print('\n--------- STATISTICS  ------------------- ')
+    print(f'Multiprocessors begin starting: {round(program_prcs_starting - program_start, 4)}')
+    print(f'Multiprocessors started: {round(program_prcs_started - program_start, 4)}')
+    print(f'Multiprocessors starting sequence time: {round(program_prcs_started - program_prcs_starting, 4)}')
+
+    print(f'\nCalculation time: {round(program_end - program_calculation_start, 4)}')
+    print(f'Full capacity calculation time: {round(program_end - program_prcs_started, 4)}')
+
+    print(f'\nCalculations complete: {round(program_calculation_complete - program_start, 4)}')
+    print(f'Calculation to solution time : {round(program_calculation_complete - program_calculation_start, 4)}')
+    print(f'Full capacity calculation to solution time : {round(program_calculation_complete - program_prcs_started, 4)}')
+
+    print(f'\nProgram execution sequence: {round(program_end - program_start, 4)}')
 
 
 if __name__ == '__main__':
