@@ -59,11 +59,11 @@ def kalk_funk(funktion: list, x):
 
 
 # Räkna ut nollställe
+# TODO: understand how my equation really works, like why does it move zig zag when no solution
 # TODO: Add logging of calculations
-# TODO: Recognize already found solutions & skip logg/save
-# TODO: Recognize already searched areas
+# TODO: Recognize already searched areas + Recognize already found solutions & skip logg/save
 # TODO: Handle polynomials w.o. solutions
-def algoritm(funktion: list, noggrannhet: int, startvärde: float, solution_queue: queue.Queue, status_queue: queue.Queue):
+def algoritm(funktion: list, noggrannhet: int, startvärde: float, solution_queue: queue.Queue, status_queue: queue.Queue, myid:int):
     x = startvärde
     old_res = None
     while True:
@@ -71,6 +71,9 @@ def algoritm(funktion: list, noggrannhet: int, startvärde: float, solution_queu
         # try numerical equation
         try:
             resultat = x - (kalk_funk(funktion=funktion, x=x) / kalk_funk(derivera(funktion), x))
+            if myid == 2:
+                print(x)
+
         except ZeroDivisionError:  # division by zero => extreme value
             status_queue.put(1)
             exit()      # exit when extrem value, otherwise it crashes
@@ -92,8 +95,7 @@ def algoritm(funktion: list, noggrannhet: int, startvärde: float, solution_queu
             old_res = resultat
 
 
-# TODO: Print all solutions
-# TODO: Terminate algorithms when all solutions found
+# TODO: Communicate how program ended: All solution for degree found, processors end or time end
 def communicator(solution_queue: queue.Queue, polynomial: list, comm_queue: queue.Queue, status_queue: queue.Queue, prcs_max, prcs_queue: queue.Queue):
     solutions = []
     completed_prcs = []
@@ -139,7 +141,7 @@ def communicator(solution_queue: queue.Queue, polynomial: list, comm_queue: queu
 
     print(f'\nAll solutions found, X = {solutions}')
 
-
+# TODO: rename swedish variables to english
 def main():
     # # Settings & function-construction
     if input('Use configuration-file? y/n ') == 'y':
@@ -192,9 +194,9 @@ def main():
     prcs_list = []
     for i in range(int(prcs_max/2)):
         prcs1 = multiprocessing.Process(target=algoritm,
-                                args=(funktion, noggrannhet, ((-marginal / (2 * prcs_max)) * (i + 1)), solution_queue, status_queue))
+                                args=(funktion, noggrannhet, ((-marginal / (2 * prcs_max)) * (i + 1)), solution_queue, status_queue, len(prcs_list)))
         prcs2 = multiprocessing.Process(target=algoritm,
-                                args=(funktion, noggrannhet, ((marginal / (2 * prcs_max)) * (i + 1)), solution_queue, status_queue))
+                                args=(funktion, noggrannhet, ((marginal / (2 * prcs_max)) * (i + 1)), solution_queue, status_queue, 0))
         prcs_list.append(prcs1)
         prcs_list.append(prcs2)
 
@@ -213,6 +215,7 @@ def main():
             program_calculation_complete = time.time()
             comm_queue.get()
             all_started = False
+            prcs_started = j
             program_prcs_started = program_calculation_complete
             break
 
@@ -244,10 +247,16 @@ def main():
 
     program_end = time.time()
 
+    # TODO: How it was solved, by max avl. or by processors end or maybe time end
+
     print('\n--------- STATISTICS  ------------------- ')
     print(f'Multiprocessors begin starting: {round(program_prcs_starting - program_start, 4)}')
     print(f'Multiprocessors started: {round(program_prcs_started - program_start, 4)}')
     print(f'Multiprocessors starting sequence time: {round(program_prcs_started - program_prcs_starting, 4)}')
+
+    print(f'\nTotal processors started: {prcs_started}')
+    print(f'Total processors not started: {prcs_max-prcs_started}')
+    print(f'Max available processors: {prcs_max}')
 
     print(f'\nCalculation time: {round(program_end - program_calculation_start, 4)}')
     print(f'Full capacity calculation time: {round(program_calculation_complete - program_prcs_started, 4)}')
