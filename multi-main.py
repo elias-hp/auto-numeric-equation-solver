@@ -4,13 +4,6 @@ import multiprocessing
 from configparser import ConfigParser
 import time
 
-# TODO: Documentation
-# hur funktioner beskrivs:
-# konstanter => (5, 0)
-# termer => (5, -3)
-# t0 => koefficienten för termen, t1 => variabeln, t2 => exponenten till variabeln
-# funktion: (5, -3) + (7, 1) + (-19, 0)
-
 
 # construct polynomial function from configuration file string
 # TODO: Shorten
@@ -63,7 +56,7 @@ def kalk_funk(funktion: list, x):
 # TODO: Add logging of calculations
 # TODO: Recognize already searched areas + Recognize already found solutions & skip logg/save
 # TODO: Handle polynomials w.o. solutions
-def algoritm(funktion: list, noggrannhet: int, startvärde: float, solution_queue: queue.Queue, status_queue: queue.Queue, myid:int):
+def algoritm(funktion: list, noggrannhet: int, startvärde: float, solution_queue: queue.Queue, status_queue: queue.Queue):
     x = startvärde
     old_res = None
     while True:
@@ -71,8 +64,6 @@ def algoritm(funktion: list, noggrannhet: int, startvärde: float, solution_queu
         # try numerical equation
         try:
             resultat = x - (kalk_funk(funktion=funktion, x=x) / kalk_funk(derivera(funktion), x))
-            if myid == 2:
-                print(x)
 
         except ZeroDivisionError:  # division by zero => extreme value
             status_queue.put(1)
@@ -141,10 +132,11 @@ def communicator(solution_queue: queue.Queue, polynomial: list, comm_queue: queu
 
     print(f'\nAll solutions found, X = {solutions}')
 
+
 # TODO: rename swedish variables to english
 def main():
     # # Settings & function-construction
-    if input('Use configuration-file? y/n ') == 'y':
+    if input('Use configuration-file? y/n ').lower() == 'y':
 
         # Read config file & apply settings
         config = ConfigParser()
@@ -194,9 +186,9 @@ def main():
     prcs_list = []
     for i in range(int(prcs_max/2)):
         prcs1 = multiprocessing.Process(target=algoritm,
-                                args=(funktion, noggrannhet, ((-marginal / (2 * prcs_max)) * (i + 1)), solution_queue, status_queue, len(prcs_list)))
+                                args=(funktion, noggrannhet, ((-marginal / (2 * prcs_max)) * (i + 1)), solution_queue, status_queue))
         prcs2 = multiprocessing.Process(target=algoritm,
-                                args=(funktion, noggrannhet, ((marginal / (2 * prcs_max)) * (i + 1)), solution_queue, status_queue, 0))
+                                args=(funktion, noggrannhet, ((marginal / (2 * prcs_max)) * (i + 1)), solution_queue, status_queue))
         prcs_list.append(prcs1)
         prcs_list.append(prcs2)
 
