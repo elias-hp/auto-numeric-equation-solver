@@ -93,6 +93,16 @@ This flaw can be worked around thanks to pythons multiprocessing library.
 The program starts a desired amount of processors inside an intervall, both defined by the user.
 Each processor runs a separate instance of the algorithm from its own designated x start value.
 These start values are determined by the marginal/amount of processors * processor instance. 
-This wal all processors are equally distributed through negatives & positives
+This way all processors are equally distributed through negatives & positives of x.
+
+### The nature of the algorithm:
+The algorithm, most of the time, 'moves' depending on weather the graph of the polynomial is descending or ascending at x.
+Therefore, all processors will result in values closer and closer to x values of solutions.
+
+
+With a large enough intervall (margin) and resolution we can assume that all solutions available have been found.
+We can also confirm that all have been found by the degree of the polynomial, degree 3 => max 3 possible solutions.
 
 ## Extension / upgraded program
+This program works in a rader "brute-force" way, but there is a possible way to build upon this code 
+to make an even more accurate & faster program... 
