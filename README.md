@@ -4,7 +4,17 @@
 
 ## Install:
 ### Windows & Linux systems:
+**Requirements:**
 The code only requires python 3 to be installed, all dependencies should be defaults.
+
+
+**Download:** There's two ways to download this program. For the latest features / updates choose the "new_feature"
+branch and download the zip file. Remember to unzip before starting the script wit python. 
+
+For the most stable version, got to the release page and download the zip file from there. 
+
+**IMPORTANT**: This program has only ever been tested on a linux system, therefore it's not guaranteed that it works on 
+Windows (multiprocessing library works differently between OS:es)
 
 ## Usage:
 The Automatic Polynomial Solver (APS) takes a polynomial function (f (x)) and returns all x where f (x) = 0.
