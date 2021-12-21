@@ -5,13 +5,17 @@
 ## Install:
 ### Windows & Linux systems:
 **Requirements:**
-The code only requires python3 to be installed, all dependencies should be defaults.
+The code only requires [python3](https://www.python.org/downloads/, "Official Python3 Download-page") to be installed, all dependencies should be defaults. Project was tested on python 
+version 3.9.5 .
 
+**Download:** There's two ways to download this program. For the latest features / updates choose the ["new_feature"](
+https://gitlab.com/school-projects-gymnasiet/auto-numeric-equation-solver/-/tree/new_feature '"Nightly build"') 
+branch and download the [zip file](https://gitlab.com/school-projects-gymnasiet/auto-numeric-equation-solver/-/archive/new_feature/auto-numeric-equation-solver-new_feature.zip
+ "Download link of v0.1"). Remember to unzip before starting the script wit python. 
 
-**Download:** There's two ways to download this program. For the latest features / updates choose the "new_feature"
-branch and download the zip file. Remember to unzip before starting the script wit python. 
-
-For the most stable version, got to the release page and download the zip file from there. 
+For the most stable version, go to the [release](
+https://gitlab.com/school-projects-gymnasiet/auto-numeric-equation-solver/-/releases "Project's official releases") 
+page and download the zip file from there. 
 
 **IMPORTANT**: This program has only ever been tested on a linux system, therefore it's not guaranteed that it works on 
 Windows (multiprocessing library works differently between OS:es)
