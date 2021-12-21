@@ -40,6 +40,7 @@ the higher the resolution of the searched intervalls become. The size of the int
 The resolution is also determined by the size of the margin, for example:
 
 >500 processors and margin 15 => resolution 15/500 = 0,03
+
 >500 processors and margin 5 => resolution 5/500 = 0,01
 
 
