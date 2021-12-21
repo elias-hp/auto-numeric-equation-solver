@@ -4,13 +4,6 @@ import multiprocessing
 from configparser import ConfigParser
 import time
 
-# TODO: Documentation
-# hur funktioner beskrivs:
-# konstanter => (5, 0)
-# termer => (5, -3)
-# t0 => koefficienten för termen, t1 => variabeln, t2 => exponenten till variabeln
-# funktion: (5, -3) + (7, 1) + (-19, 0)
-
 
 # construct polynomial function from configuration file string
 # TODO: Shorten
@@ -59,11 +52,12 @@ def kalk_funk(funktion: list, x):
 
 
 # Räkna ut nollställe
+# TODO: understand how my equation really works, like why does it move zig zag when no solution
 # TODO: Add logging of calculations
-# TODO: Recognize already found solutions & skip logg/save
-# TODO: Recognize already searched areas
+# TODO: Recognize already searched areas + Recognize already found solutions & skip logg/save
 # TODO: Handle polynomials w.o. solutions
-def algoritm(funktion: list, noggrannhet: int, startvärde: float, solution_queue: queue.Queue, status_queue: queue.Queue):
+def algoritm(funktion: list, noggrannhet: int, startvärde: float,
+             solution_queue: queue.Queue, status_queue: queue.Queue):
     x = startvärde
     old_res = None
     while True:
@@ -71,9 +65,10 @@ def algoritm(funktion: list, noggrannhet: int, startvärde: float, solution_queu
         # try numerical equation
         try:
             resultat = x - (kalk_funk(funktion=funktion, x=x) / kalk_funk(derivera(funktion), x))
+
         except ZeroDivisionError:  # division by zero => extreme value
             status_queue.put(1)
-            exit()      # exit when extrem value, otherwise it crashes
+            exit()  # exit when extrem value, otherwise it crashes
 
         # first run of algorithm
         if not old_res:
@@ -92,9 +87,9 @@ def algoritm(funktion: list, noggrannhet: int, startvärde: float, solution_queu
             old_res = resultat
 
 
-# TODO: Print all solutions
-# TODO: Terminate algorithms when all solutions found
-def communicator(solution_queue: queue.Queue, polynomial: list, comm_queue: queue.Queue, status_queue: queue.Queue, prcs_max):
+# TODO: Communicate how program ended: All solution for degree found, processors end or time end
+def communicator(solution_queue: queue.Queue, polynomial: list, comm_queue: queue.Queue,
+                 status_queue: queue.Queue, prcs_max, prcs_queue: queue.Queue):
     solutions = []
     completed_prcs = []
 
@@ -107,13 +102,20 @@ def communicator(solution_queue: queue.Queue, polynomial: list, comm_queue: queu
         # send kill flag & print when all possible solutions found
         if len(solutions) == max_solutions:
             comm_queue.put(1)
+
+            # killing all algorithm-processes
+            while not prcs_queue.empty():
+                prcs = prcs_queue.get()
+                prcs.kill()
+            print('Killed algorithm-processes')
+
             break
 
         # send kill flag & print when all available solutions found => all prcs done
         elif not status_queue.empty():
             completed_prcs.append(status_queue.get())
             if len(completed_prcs) == prcs_max:
-                comm_queue.put(2)
+                comm_queue.put(1)
                 break
 
         # handle new solutions
@@ -133,9 +135,10 @@ def communicator(solution_queue: queue.Queue, polynomial: list, comm_queue: queu
     print(f'\nAll solutions found, X = {solutions}')
 
 
+# TODO: rename swedish variables to english
 def main():
     # # Settings & function-construction
-    if input('Use configuration-file? y/n ') == 'y':
+    if input('Use configuration-file? y/n ').lower() == 'y':
 
         # Read config file & apply settings
         config = ConfigParser()
@@ -175,6 +178,7 @@ def main():
     solution_queue = multiprocessing.Queue()
     comm_queue = multiprocessing.Queue()
     status_queue = multiprocessing.Queue()
+    prcs_queue = multiprocessing.Queue()
 
     # # multiprocesser
     # TODO: Analyse area in which there could be a solution
@@ -182,63 +186,81 @@ def main():
     program_prcs_starting = time.time()
 
     prcs_list = []
-    for i in range(int(prcs_max/2)):
+    for i in range(int(prcs_max / 2)):
         prcs1 = multiprocessing.Process(target=algoritm,
-                                args=(funktion, noggrannhet, ((-marginal / (2 * prcs_max)) * (i + 1)), solution_queue, status_queue))
+                                        args=(funktion, noggrannhet, ((-marginal / (2 * prcs_max)) * (i + 1)),
+                                              solution_queue, status_queue))
         prcs2 = multiprocessing.Process(target=algoritm,
-                                args=(funktion, noggrannhet, ((marginal / (2 * prcs_max)) * (i + 1)), solution_queue, status_queue))
+                                        args=(funktion, noggrannhet, ((marginal / (2 * prcs_max)) * (i + 1)),
+                                              solution_queue, status_queue))
         prcs_list.append(prcs1)
         prcs_list.append(prcs2)
 
     # start communicator process
-    comm = multiprocessing.Process(target=communicator, args=(solution_queue, funktion, comm_queue, status_queue, prcs_max))
+    comm = multiprocessing.Process(target=communicator, args=(solution_queue, funktion, comm_queue,
+                                                              status_queue, prcs_max, prcs_queue))
     comm.start()
 
     program_calculation_start = time.time()
 
     # start all processes
-    # TODO: move to thread or something...
+    started_prcs = []
+    all_started = True
     for j, prcs in enumerate(prcs_list):
+        # stop starting prcs if solutions found
+        if not comm_queue.empty():
+            program_calculation_complete = time.time()
+            comm_queue.get()
+            all_started = False
+            prcs_started = j
+            program_prcs_started = program_calculation_complete
+            break
+
+        # start
         prcs.start()
 
-    program_prcs_started = time.time()
+        # TODO: Fix authentication typeerror
+        # raises typeerror because AuthenticationString in process object, still works doe
+        # only prints errors, probably a security flaw  :(
+        prcs_queue.put(prcs)
 
-    # TODO: Stop this from being hindered by function starter
+        started_prcs.append(prcs)
 
-    while True:
-        if not comm_queue.empty():
-            flag = comm_queue.get()
-            if flag == 1:
-                program_calculation_complete = time.time()
-                for prcs in prcs_list:
-                    prcs.kill()
-                break
-
-            if flag == 2:
-                print(2)
-                program_calculation_complete = time.time()
-                break
+    # time when all prcs started / not accurate when skipped for finding solution early
+    if all_started:
+        program_prcs_started = time.time()
 
     # join all processes
-    for prcs in prcs_list:
+    for prcs in started_prcs:
         prcs.join()
-        comm.join()
+    comm.join()
+
+    # time calculations end when program finished
+    if not comm_queue.empty():
+        program_calculation_complete = time.time()
 
     # TODO: Add tests
 
     program_end = time.time()
+
+    # TODO: How it was solved, by max avl. or by processors end or maybe time end
 
     print('\n--------- STATISTICS  ------------------- ')
     print(f'Multiprocessors begin starting: {round(program_prcs_starting - program_start, 4)}')
     print(f'Multiprocessors started: {round(program_prcs_started - program_start, 4)}')
     print(f'Multiprocessors starting sequence time: {round(program_prcs_started - program_prcs_starting, 4)}')
 
+    print(f'\nTotal processors started: {prcs_started}')
+    print(f'Total processors not started: {prcs_max - prcs_started}')
+    print(f'Max available processors: {prcs_max}')
+
     print(f'\nCalculation time: {round(program_calculation_complete - program_calculation_start, 4)}')
     print(f'Full capacity calculation time: {round(program_calculation_complete - program_prcs_started, 4)}')
 
     print(f'\nCalculations complete: {round(program_calculation_complete - program_start, 4)}')
     print(f'Calculation to solution time : {round(program_calculation_complete - program_calculation_start, 4)}')
-    print(f'Full capacity calculation to solution time : {round(program_calculation_complete - program_prcs_started, 4)}')
+    print(f'Full capacity calculation to solution time : '
+          f'{round(program_calculation_complete - program_prcs_started, 4)}')
 
     print(f'\nProgram execution sequence: {round(program_end - program_start, 4)}')
 
