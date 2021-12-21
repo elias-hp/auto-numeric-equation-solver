@@ -1,6 +1,6 @@
 # Automatic Polynomial Solver
 
-## Attention! for optimal performance use branch "new_feature"
+## Attention! for optimal performance use branch "master"
 
 ## Install:
 ### Windows & Linux systems:
