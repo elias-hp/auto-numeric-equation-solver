@@ -5,7 +5,7 @@
 ## Install:
 ### Windows & Linux systems:
 **Requirements:**
-The code only requires python 3 to be installed, all dependencies should be defaults.
+The code only requires python3 to be installed, all dependencies should be defaults.
 
 
 **Download:** There's two ways to download this program. For the latest features / updates choose the "new_feature"
